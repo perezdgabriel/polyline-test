@@ -16,18 +16,18 @@ const lineData = {
       depth: 0.5,
       show: true,
     },
-    {
-      points: [
-        { "x": -1, "y": 1, "z": 0, 'angle': 0 },
-        { "x": 0, "y": 1, "z": 0, 'angle': 0 },
-        { "x": 1, "y": 1, "z": 0, 'angle': 0 },
-        { "x": 1, "y": 0, "z": 0, 'angle': 0 },
-        // { "x": 1.3, "y": 0.3, "z": 0 },
-      ],
-      width: 0.2,
-      depth: 0.5,
-      show: true,
-    },
+    // {
+    //   points: [
+    //     { "x": -1, "y": 1, "z": 0, 'angle': 0 },
+    //     { "x": 0, "y": 1, "z": 0, 'angle': 0 },
+    //     { "x": 1, "y": 1, "z": 0, 'angle': 0 },
+    //     { "x": 1, "y": 0, "z": 0, 'angle': 0 },
+    //     // { "x": 1.3, "y": 0.3, "z": 0 },
+    //   ],
+    //   width: 0.2,
+    //   depth: 0.5,
+    //   show: true,
+    // },
   ],
   connections: [
     [0, 2, 1, 3],
@@ -107,14 +107,15 @@ function getIntersectionPoint(p0, p1, p2, p3, intersectionPoint) {
 }
 
 function createOuterLine(rectangles) {
+  let lineVertices = []
   let vertices = []
   const geometry = new THREE.BufferGeometry();
   const v0 = rectangles[0][0]
   const v3 = rectangles[0][3]
   drawFinalPoint(v3)
-  vertices.push([v3.x, v3.z, -v3.y])
+  lineVertices.push(v3)
   drawFinalPoint(v0)
-  vertices.push([v0.x, v0.z, -v0.y])
+  lineVertices.push(v0)
 
   for (let i = 0; i < rectangles.length; i++) {
     const v0 = rectangles[i][0]
@@ -124,42 +125,38 @@ function createOuterLine(rectangles) {
     if (i < rectangles.length - 1) {
       const v0_next = rectangles[i + 1][0]
       const v1_next = rectangles[i + 1][1]
-      let intersectionPoint = new THREE.Vector3()
-      let isIntersecting = getIntersectionPoint(v0, v1, v0_next, v1_next, intersectionPoint)
+      let ip1 = new THREE.Vector3()
+      let isIntersecting = getIntersectionPoint(v0, v1, v0_next, v1_next, ip1)
       if (isIntersecting) {
-        drawFinalPoint(intersectionPoint)
-        vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
+        drawFinalPoint(ip1)
+        lineVertices.push(ip1)
       } else {
         const v3_next = rectangles[i + 1][3]
-        isIntersecting = getIntersectionPoint(v0, v1, v3_next, v0_next, intersectionPoint)
+        let ip2 = new THREE.Vector3()
+        isIntersecting = getIntersectionPoint(v0, v1, v3_next, v0_next, ip2)
         if (isIntersecting) {
-          drawFinalPoint(intersectionPoint)
-          vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-          isIntersecting = getIntersectionPoint(intersectionPoint, v0_next, v1, v2, intersectionPoint)
+          drawFinalPoint(ip2)
+          lineVertices.push(ip2)
+          let ip3 = new THREE.Vector3()
+          isIntersecting = getIntersectionPoint(ip2, v0_next, v1, v2, ip3)
           if (isIntersecting) {
-            drawFinalPoint(intersectionPoint)
-            vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-            isIntersecting = getIntersectionPoint(v1, v2, v0_next, v1_next, intersectionPoint)
+            drawFinalPoint(ip3)
+            lineVertices.push(ip3)
+            let ip4 = new THREE.Vector3()
+            isIntersecting = getIntersectionPoint(v1, v2, v0_next, v1_next, ip4)
             if (isIntersecting) {
-              drawFinalPoint(intersectionPoint)
-              vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-            }
-            else {
-              // drawFinalPoint(v1)
-              // vertices.push([v1.x, v1.z, -v1.y])
+              drawFinalPoint(ip4)
+              lineVertices.push(ip4)
             }
           }
-          // drawFinalPoint(v0_next)
-          // vertices.push([v0_next.x, v0_next.z, -v0_next.y])
         }
-        // vertices.push([v1.x, v1.z, -v1.y])
       }
     }
     else {
       drawFinalPoint(v1)
-      vertices.push([v1.x, v1.z, -v1.y])
+      lineVertices.push(v1)
       drawFinalPoint(v2)
-      vertices.push([v2.x, v2.z, -v2.y])
+      lineVertices.push(v2)
     }
   }
 
@@ -171,25 +168,27 @@ function createOuterLine(rectangles) {
       const v1_prev = rectangles[i - 1][1]
       const v2_prev = rectangles[i - 1][2]
       const v3_prev = rectangles[i - 1][3]
-      let intersectionPoint = new THREE.Vector3()
-      let isIntersecting = getIntersectionPoint(v2, v3, v2_prev, v3_prev, intersectionPoint)
+      let ip1 = new THREE.Vector3()
+      let isIntersecting = getIntersectionPoint(v2, v3, v2_prev, v3_prev, ip1)
       if (isIntersecting) {
-        drawFinalPoint(intersectionPoint)
-        vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
+        drawFinalPoint(ip1)
+        lineVertices.push(ip1)
       } else {
-        let isIntersecting = getIntersectionPoint(v2, v3, v1_prev, v2_prev, intersectionPoint)
+        let ip2 = new THREE.Vector3()
+        let isIntersecting = getIntersectionPoint(v2, v3, v1_prev, v2_prev, ip2)
         if (isIntersecting) {
-          drawFinalPoint(intersectionPoint)
-          vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-          isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v1_prev, intersectionPoint) ////
+          drawFinalPoint(ip2)
+          lineVertices.push(ip2)
+          let ip3 = new THREE.Vector3()
+          isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v1_prev, ip3) ////
           if (isIntersecting) {
-            drawFinalPoint(intersectionPoint)
-            vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-            isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v3_prev, intersectionPoint)
+            drawFinalPoint(ip3)
+            lineVertices.push(ip3)
+            let ip4 = new THREE.Vector3()
+            isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v3_prev, ip4)
             if (isIntersecting) {
-              drawFinalPoint(intersectionPoint)
-              vertices.push([intersectionPoint.x, intersectionPoint.z, -intersectionPoint.y])
-              isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v3_prev, intersectionPoint)
+              drawFinalPoint(ip4)
+              lineVertices.push(ip4)
             }
           }
         }
@@ -197,11 +196,16 @@ function createOuterLine(rectangles) {
     }
     else {
       drawFinalPoint(v3)
-      vertices.push([v3.x, v3.z, -v3.y])
+      lineVertices.push(v3)
     }
   }
 
-  vertices = vertices.flat()
+  lineVertices.forEach(vertex => {
+    vertices.push(vertex.x, vertex.z, -vertex.y)
+  })
+  // console.log(lineVertices)
+  // console.log(vertices)
+
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
 
   const material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
@@ -209,13 +213,13 @@ function createOuterLine(rectangles) {
   scene.add(line)
   objects.push(line);
 
-  return vertices
+  return lineVertices
 }
 
 // Function to create a 2D line with constant width
-function create2DLine(lineData) {
-  const points = lineData.points;
-  const width = lineData.width;
+function create2DLine(line) {
+  const points = line.points;
+  const width = line.width;
 
   const circles = new THREE.Group();
   const rectanglesToShow = new THREE.Group()
@@ -324,11 +328,11 @@ function createExtrusion(vertices) {
   if (!lineData.showExtrusion) return
   const depth = lineData.depth
   const shape = new THREE.Shape();
-  shape.moveTo(vertices[0], -vertices[2]);
-  for (let i = 3; i < vertices.length; i += 3) {
-    shape.lineTo(vertices[i], -vertices[i + 2]);
+  shape.moveTo(vertices[0].x, -vertices[0].y);
+  for (let i = 0; i < vertices.length; i++) {
+    shape.lineTo(vertices[i].x, -vertices[i].y);
   }
-  shape.lineTo(vertices[0], -vertices[2]);
+  shape.lineTo(vertices[0].x, -vertices[0].y);
 
   const extrudeSettings = {
     steps: 1,
@@ -339,7 +343,7 @@ function createExtrusion(vertices) {
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
   const material = new THREE.MeshBasicMaterial({ color: 'orange' });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.set(-Math.PI / 2, 0, 0)
+  mesh.rotation.set(Math.PI / 2, 0, 0)
   const edges = new THREE.EdgesGeometry(geometry);
   const lineColor = 0
   const lineMaterial = new THREE.LineDashedMaterial({
@@ -351,7 +355,7 @@ function createExtrusion(vertices) {
   });
   const line = new THREE.LineSegments(edges, lineMaterial);
   line.computeLineDistances();
-  line.rotation.set(-Math.PI / 2, 0, 0)
+  line.rotation.set(Math.PI / 2, 0, 0)
   scene.add(line);
   objects.push(line);
   scene.add(mesh);
