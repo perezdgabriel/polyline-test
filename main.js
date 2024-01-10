@@ -5,15 +5,18 @@ import union from '@turf/union';
 import * as turf from '@turf/helpers';
 
 // Your line data
-const lineData = {
+let lineData = {
   lines: [
     {
       points: [
         { "x": -1, "y": 0, "z": 0, 'angle': 0 },
-        { "x": 0, "y": 0, "z": 0, 'angle': 0 },
-        { "x": 1, "y": 0, "z": 0, 'angle': 0 },
-        { "x": 1.2, "y": 0, "z": 0, 'angle': 0 },
-        { "x": 1.5, "y": 0, "z": 0, 'angle': 0 },
+        {
+          "x": -0.95,
+          "y": 0.99,
+          "z": 0,
+          "angle": 87.12
+        },
+        { "x": 1, "y": 0, "z": 0, 'angle': 0 }
       ],
       width: 0.2,
       depth: 0.5,
@@ -32,10 +35,8 @@ const lineData = {
     //   color: 0x0000ff,
     // },
   ],
-  connections: [
-    [0, 2, 1, 3],
-  ],
-  showIntersectionPoints: false,
+  connections: [],
+  showIntersectionPoints: true,
   showVertices: false,
   showRectangles: true,
   showLabels: false,
@@ -43,6 +44,7 @@ const lineData = {
   showUnion: false,
 };
 
+let textArea
 let camera, scene, renderer;
 
 let objects = [];
@@ -71,9 +73,9 @@ function addToScene(object) {
   objects.push(object);
 }
 
-function drawFinalPoint(point) {
+function drawFinalPoint(point, color = 'white') {
   if (!lineData.showIntersectionPoints) return
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  const material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
   const radius = 0.015;
 
   const geometry = new THREE.CircleGeometry(radius);
@@ -144,17 +146,19 @@ function createOuterLine(rectangles, show, lineColor) {
         let ip2 = new THREE.Vector3()
         isIntersecting = getIntersectionPoint(v0, v1, v3_next, v0_next, ip2)
         if (isIntersecting) {
-          drawFinalPoint(ip2)
+          drawFinalPoint(ip2, 'yellow')
           lineVertices.push(ip2)
           let ip3 = new THREE.Vector3()
           isIntersecting = getIntersectionPoint(ip2, v0_next, v1, v2, ip3)
           if (isIntersecting) {
-            drawFinalPoint(ip3)
-            lineVertices.push(ip3)
+            // drawFinalPoint(ip3, 'blue')
+            // lineVertices.push(ip3)
             let ip4 = new THREE.Vector3()
             isIntersecting = getIntersectionPoint(v1, v2, v0_next, v1_next, ip4)
             if (isIntersecting) {
-              drawFinalPoint(ip4)
+              // At this point we can calculate the point where v0-v1 and v1_next-v0_next would intersect
+
+              drawFinalPoint(ip4, 'orange')
               lineVertices.push(ip4)
             }
           }
@@ -421,11 +425,34 @@ function deletePolyline() {
   objects = []
 }
 
+function setTextArea(lineData) {
+  textArea.value = JSON.stringify(lineData, null, 2)
+}
+
+function handleTextAreaChange(event) {
+  try {
+    const data = JSON.parse(event.target.value)
+    lineData.lines = data.lines
+    lineData.showIntersectionPoints = data.showIntersectionPoints
+    lineData.showVertices = data.showVertices
+    lineData.showRectangles = data.showRectangles
+    lineData.showLabels = data.showLabels
+    lineData.showExtrusion = data.showExtrusion
+    lineData.showUnion = data.showUnion
+    render()
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 function init() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  textArea = document.getElementById('text-area')
+  textArea.addEventListener('input', handleTextAreaChange)
+  setTextArea(lineData)
+  const domElement = document.getElementById('scene-canvas');
+  renderer = new THREE.WebGLRenderer({ antialias: true, canvas: domElement });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
 
@@ -438,8 +465,8 @@ function init() {
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.addEventListener('change', render); // use only if there is no animation loop
-  controls.minDistance = 2;
-  controls.maxDistance = 10;
+  // controls.minDistance = 0.5;
+  // controls.maxDistance = 10;
   controls.enablePan = true;
   controls.enableZoom = true;
   // controls.zoomSpeed = 0.1;
@@ -479,10 +506,14 @@ function init() {
           const previousPoint = line.points[j - 1]
           const angle = value * Math.PI / 180
           const distance = Math.sqrt(Math.pow(currentPoint.x - previousPoint.x, 2) + Math.pow(currentPoint.y - previousPoint.y, 2))
-          const x = previousPoint.x + distance * Math.cos(angle)
-          const y = previousPoint.y + distance * Math.sin(angle)
+          // Set x and y with 2 decimal positions
+          let x = previousPoint.x + distance * Math.cos(angle)
+          x = Math.round(x * 100) / 100
+          let y = previousPoint.y + distance * Math.sin(angle)
+          y = Math.round(y * 100) / 100
           currentPoint.x = x
           currentPoint.y = y
+          setTextArea(lineData)
 
           render();
         });
@@ -532,7 +563,6 @@ function onWindowResize() {
 }
 
 function render() {
-  console.log('render')
   deletePolyline()
   drawPolyline()
   renderer.render(scene, camera);
