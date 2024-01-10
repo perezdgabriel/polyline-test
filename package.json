@@ -12,6 +12,8 @@
     "vite": "^5.0.8"
   },
   "dependencies": {
+    "@turf/helpers": "^6.5.0",
+    "@turf/union": "^6.5.0",
     "three": "^0.160.0"
   }
 }

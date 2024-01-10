@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import union from '@turf/union';
+import * as turf from '@turf/helpers';
 
 // Your line data
 const lineData = {
@@ -10,23 +12,24 @@ const lineData = {
         { "x": -1, "y": 0, "z": 0, 'angle': 0 },
         { "x": 0, "y": 0, "z": 0, 'angle': 0 },
         { "x": 1, "y": 0, "z": 0, 'angle': 0 },
-        // { "x": 1.3, "y": 0.3, "z": 0 },
+        { "x": 1.2, "y": 0, "z": 0, 'angle': 0 },
+        { "x": 1.5, "y": 0, "z": 0, 'angle': 0 },
       ],
       width: 0.2,
       depth: 0.5,
       show: true,
+      color: 0xff0000,
     },
     // {
     //   points: [
-    //     { "x": -1, "y": 1, "z": 0, 'angle': 0 },
-    //     { "x": 0, "y": 1, "z": 0, 'angle': 0 },
-    //     { "x": 1, "y": 1, "z": 0, 'angle': 0 },
-    //     { "x": 1, "y": 0, "z": 0, 'angle': 0 },
-    //     // { "x": 1.3, "y": 0.3, "z": 0 },
+    //     { "x": 0, "y": -1.5, "z": 0, 'angle': 0 },
+    //     { "x": 0, "y": -1, "z": 0, 'angle': 0 },
+    //     { "x": 0, "y": 0, "z": 0, 'angle': 0 },
     //   ],
     //   width: 0.2,
     //   depth: 0.5,
     //   show: true,
+    //   color: 0x0000ff,
     // },
   ],
   connections: [
@@ -36,7 +39,8 @@ const lineData = {
   showVertices: false,
   showRectangles: true,
   showLabels: false,
-  showExtrusion: false
+  showExtrusion: false,
+  showUnion: false,
 };
 
 let camera, scene, renderer;
@@ -44,7 +48,8 @@ let camera, scene, renderer;
 let objects = [];
 
 // Function to plot points as spheres
-function plotPoints(points) {
+function drawPoints(points, show) {
+  if (!show) return
   const group = new THREE.Group();
   const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
   const radius = 0.03;
@@ -58,8 +63,12 @@ function plotPoints(points) {
     group.add(circle);
   });
 
-  objects.push(group);
-  return group;
+  addToScene(group);
+}
+
+function addToScene(object) {
+  scene.add(object);
+  objects.push(object);
 }
 
 function drawFinalPoint(point) {
@@ -106,7 +115,7 @@ function getIntersectionPoint(p0, p1, p2, p3, intersectionPoint) {
   return false; // No collision
 }
 
-function createOuterLine(rectangles) {
+function createOuterLine(rectangles, show, lineColor) {
   let lineVertices = []
   let vertices = []
   const geometry = new THREE.BufferGeometry();
@@ -200,24 +209,23 @@ function createOuterLine(rectangles) {
     }
   }
 
-  lineVertices.forEach(vertex => {
-    vertices.push(vertex.x, vertex.z, -vertex.y)
-  })
-  // console.log(lineVertices)
-  // console.log(vertices)
+  if (show) {
+    lineVertices.forEach(vertex => {
+      vertices.push(vertex.x, vertex.z, -vertex.y)
+    })
 
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const material = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 5 });
+    const line = new THREE.Line(geometry, material);
 
-  const material = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 5 });
-  const line = new THREE.Line(geometry, material);
-  scene.add(line)
-  objects.push(line);
+    addToScene(line);
+  }
 
   return lineVertices
 }
 
 // Function to create a 2D line with constant width
-function create2DLine(line) {
+function create2DLine(line, show) {
   const points = line.points;
   const width = line.width;
 
@@ -278,11 +286,9 @@ function create2DLine(line) {
     rectanglesToShow.add(line)
   }
 
-  if (lineData.showRectangles) {
-    scene.add(rectanglesToShow)
-    scene.add(circles)
-    objects.push(circles);
-    objects.push(rectanglesToShow);
+  if (show) {
+    addToScene(rectanglesToShow)
+    addToScene(circles)
   }
   return rectangles
 }
@@ -324,10 +330,10 @@ function createLabel(text) {
   return sprite;
 }
 
-function createExtrusion(vertices) {
-  if (!lineData.showExtrusion) return
-  const depth = lineData.depth
+function createExtrusion(vertices, depth, color, show) {
+  if (!show) return
   const shape = new THREE.Shape();
+  console.log(vertices)
   shape.moveTo(vertices[0].x, -vertices[0].y);
   for (let i = 0; i < vertices.length; i++) {
     shape.lineTo(vertices[i].x, -vertices[i].y);
@@ -336,12 +342,12 @@ function createExtrusion(vertices) {
 
   const extrudeSettings = {
     steps: 1,
-    depth: depth,
+    depth: -depth,
     bevelEnabled: false,
   };
 
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-  const material = new THREE.MeshBasicMaterial({ color: 'orange' });
+  const material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.set(Math.PI / 2, 0, 0)
   const edges = new THREE.EdgesGeometry(geometry);
@@ -362,15 +368,50 @@ function createExtrusion(vertices) {
   objects.push(mesh);
 }
 
-function drawPolyline() {
-  lineData.lines.forEach(line => {
-    if (!line.show) return
-    const pointsGroup = plotPoints(line.points);
-    scene.add(pointsGroup);
-    const rectangles = create2DLine(line);
-    const vertices = createOuterLine(rectangles)
-    createExtrusion(vertices)
+function drawSourroundingPolygon(polygon) {
+  let vertices = []
+  const geometry = new THREE.BufferGeometry();
+
+  polygon.geometry.coordinates[0].forEach(vertex => {
+    vertices.push(vertex[0], 0, -vertex[1])
   })
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+  const material = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 5 });
+  const line = new THREE.Line(geometry, material);
+  scene.add(line)
+  objects.push(line);
+}
+
+function drawPolyline() {
+  const polygons = []
+
+  lineData.lines.forEach(line => {
+    drawPoints(line.points, line.show || lineData.showUnion);
+    const rectangles = create2DLine(line, line.show && lineData.showRectangles);
+    const vertices = createOuterLine(rectangles, line.show, line.color)
+    createExtrusion(vertices, line.depth, line.color, lineData.showExtrusion && line.show && !lineData.showUnion)
+    const lineVertices = []
+    vertices.forEach(vertex => {
+      lineVertices.push([vertex.x, vertex.y])
+    })
+    polygons.push(turf.polygon([lineVertices]))
+  })
+
+  if (!lineData.showUnion) return
+  // Calculate the union
+  if (polygons.length < 2) return
+  const unionPolygon = union(polygons[0], polygons[1]);
+  if (unionPolygon.geometry.coordinates.length !== 1) return
+  drawSourroundingPolygon(unionPolygon)
+  if (lineData.showExtrusion) {
+    const vertices = []
+    unionPolygon.geometry.coordinates[0].forEach(vertex => {
+      vertices.push(new THREE.Vector3(vertex[0], vertex[1], 0))
+    })
+    createExtrusion(vertices, 1, 'white', true)
+  }
 }
 
 function deletePolyline() {
@@ -464,9 +505,12 @@ function init() {
   gui.add(lineData, 'showExtrusion').name('Ver extrusión').onChange(function (value) {
     render();
   });
+  gui.add(lineData, 'showUnion').name('Ver unión').onChange(function (value) {
+    render();
+  });
 
   // Add camera z position to gui
-  gui.add(camera.position, 'y', 0, 10).name('camera y').onChange(function (value) {
+  gui.add(camera.position, 'y', 0, 10).name('camera z').onChange(function (value) {
     controls.update()
     render();
   })
@@ -488,6 +532,7 @@ function onWindowResize() {
 }
 
 function render() {
+  console.log('render')
   deletePolyline()
   drawPolyline()
   renderer.render(scene, camera);
