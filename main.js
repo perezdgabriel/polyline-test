@@ -11,10 +11,10 @@ let lineData = {
       points: [
         { "x": -1, "y": 0, "z": 0, 'angle': 0 },
         {
-          "x": -0.95,
-          "y": 0.99,
+          "x": -1.15,
+          "y": -1,
           "z": 0,
-          "angle": 87.12
+          "angle": -98.64
         },
         { "x": 1, "y": 0, "z": 0, 'angle': 0 }
       ],
@@ -42,6 +42,7 @@ let lineData = {
   showLabels: false,
   showExtrusion: false,
   showUnion: false,
+  chaflan: false
 };
 
 let textArea
@@ -94,7 +95,7 @@ function drawFinalPoint(point, color = 'white') {
   // scene.add(label)
 }
 
-function getIntersectionPoint(p0, p1, p2, p3, intersectionPoint) {
+function getIntersectionPoint(p0, p1, p2, p3, intersectionPoint, findCollision = true) {
   const s1_x = p1.x - p0.x;
   const s1_y = p1.y - p0.y;
   const s2_x = p3.x - p2.x;
@@ -106,15 +107,16 @@ function getIntersectionPoint(p0, p1, p2, p3, intersectionPoint) {
   const s = (-s1_y * (p0.x - p2.x) + s1_x * (p0.y - p2.y)) / d;
   const t = (s2_x * (p0.y - p2.y) - s2_y * (p0.x - p2.x)) / d;
 
-  if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+  intersectionPoint.x = p0.x + (t * s1_x);
+  intersectionPoint.y = p0.y + (t * s1_y);
+  intersectionPoint.z = 0
+
+  if (findCollision && !(s >= 0 && s <= 1 && t >= 0 && t <= 1)) {
     // Collision detected
-    intersectionPoint.x = p0.x + (t * s1_x);
-    intersectionPoint.y = p0.y + (t * s1_y);
-    intersectionPoint.z = 0
-    return true;
+    return false;
   }
 
-  return false; // No collision
+  return true; // No collision
 }
 
 function createOuterLine(rectangles, show, lineColor) {
@@ -146,20 +148,33 @@ function createOuterLine(rectangles, show, lineColor) {
         let ip2 = new THREE.Vector3()
         isIntersecting = getIntersectionPoint(v0, v1, v3_next, v0_next, ip2)
         if (isIntersecting) {
-          drawFinalPoint(ip2, 'yellow')
-          lineVertices.push(ip2)
+          if (lineData.chaflan) {
+            drawFinalPoint(ip2, 'yellow')
+            lineVertices.push(ip2)
+          }
           let ip3 = new THREE.Vector3()
           isIntersecting = getIntersectionPoint(ip2, v0_next, v1, v2, ip3)
           if (isIntersecting) {
-            // drawFinalPoint(ip3, 'blue')
-            // lineVertices.push(ip3)
+            if (lineData.chaflan) {
+              drawFinalPoint(ip3, 'blue')
+              lineVertices.push(ip3)
+            }
             let ip4 = new THREE.Vector3()
             isIntersecting = getIntersectionPoint(v1, v2, v0_next, v1_next, ip4)
             if (isIntersecting) {
-              // At this point we can calculate the point where v0-v1 and v1_next-v0_next would intersect
+              if (lineData.chaflan) {
+                drawFinalPoint(ip4, 'orange')
+                lineVertices.push(ip4)
+              } else {
+                // At this point we can calculate the point where v0-v1 and v1_next-v0_next would intersect
+                let ip5 = new THREE.Vector3()
+                isIntersecting = getIntersectionPoint(v0, v1, v1_next, v0_next, ip5, false)
+                if (isIntersecting) {
+                  drawFinalPoint(ip5, 'cyan')
+                  lineVertices.push(ip5)
+                }
+              }
 
-              drawFinalPoint(ip4, 'orange')
-              lineVertices.push(ip4)
             }
           }
         }
@@ -190,18 +205,32 @@ function createOuterLine(rectangles, show, lineColor) {
         let ip2 = new THREE.Vector3()
         let isIntersecting = getIntersectionPoint(v2, v3, v1_prev, v2_prev, ip2)
         if (isIntersecting) {
-          drawFinalPoint(ip2)
-          lineVertices.push(ip2)
+          if (lineData.chaflan) {
+            drawFinalPoint(ip2)
+            lineVertices.push(ip2)
+          }
           let ip3 = new THREE.Vector3()
           isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v1_prev, ip3) ////
           if (isIntersecting) {
-            drawFinalPoint(ip3)
-            lineVertices.push(ip3)
+            if (lineData.chaflan) {
+              drawFinalPoint(ip3)
+              lineVertices.push(ip3)
+            }
             let ip4 = new THREE.Vector3()
             isIntersecting = getIntersectionPoint(v3, v0, v2_prev, v3_prev, ip4)
             if (isIntersecting) {
-              drawFinalPoint(ip4)
-              lineVertices.push(ip4)
+              if (lineData.chaflan) {
+                drawFinalPoint(ip4)
+                lineVertices.push(ip4)
+              } else {
+                // At this point we can calculate the point where v0-v1 and v1_next-v0_next would intersect
+                let ip5 = new THREE.Vector3()
+                isIntersecting = getIntersectionPoint(v2, v3, v3_prev, v2_prev, ip5, false)
+                if (isIntersecting) {
+                  drawFinalPoint(ip5)
+                  lineVertices.push(ip5)
+                }
+              }
             }
           }
         }
@@ -337,7 +366,6 @@ function createLabel(text) {
 function createExtrusion(vertices, depth, color, show) {
   if (!show) return
   const shape = new THREE.Shape();
-  console.log(vertices)
   shape.moveTo(vertices[0].x, -vertices[0].y);
   for (let i = 0; i < vertices.length; i++) {
     shape.lineTo(vertices[i].x, -vertices[i].y);
@@ -537,6 +565,9 @@ function init() {
     render();
   });
   gui.add(lineData, 'showUnion').name('Ver unión').onChange(function (value) {
+    render();
+  });
+  gui.add(lineData, 'chaflan').name('Chaflan').onChange(function (value) {
     render();
   });
 
