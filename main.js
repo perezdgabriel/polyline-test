@@ -46,8 +46,8 @@ let lineData = {
 };
 
 let textArea
-let camera, scene, renderer;
-
+let camera, scene, renderer, controls;
+let gui = new GUI();
 let objects = [];
 
 // Function to plot points as spheres
@@ -467,46 +467,16 @@ function handleTextAreaChange(event) {
     lineData.showLabels = data.showLabels
     lineData.showExtrusion = data.showExtrusion
     lineData.showUnion = data.showUnion
+    updateGUI()
     render()
   } catch (error) {
     console.error(error)
   }
 }
 
-function init() {
-  textArea = document.getElementById('text-area')
-  textArea.addEventListener('input', handleTextAreaChange)
-  setTextArea(lineData)
-  const domElement = document.getElementById('scene-canvas');
-  renderer = new THREE.WebGLRenderer({ antialias: true, canvas: domElement });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 200);
-  camera.position.set(- 1.5, 2.5, 3.0);
-
-  const light = new THREE.HemisphereLight(0xffffff, 0x080808, 4.5);
-  light.position.set(- 1.25, 1, 1.25);
-  scene.add(light);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.addEventListener('change', render); // use only if there is no animation loop
-  // controls.minDistance = 0.5;
-  // controls.maxDistance = 10;
-  controls.enablePan = true;
-  controls.enableZoom = true;
-  // controls.zoomSpeed = 0.1;
-
-  // Show a grid
-  const gridHelper = new THREE.GridHelper(10, 10);
-  scene.add(gridHelper);
-
-  // Have a light grey backgroud
-  scene.background = new THREE.Color(0x22222);
-
-  const gui = new GUI();
+function updateGUI() {
+  gui.destroy()
+  gui = new GUI();
   for (let i = 0; i < lineData.lines.length; i++) {
     const folder = gui.addFolder(`Linea ${i + 1}`);
     folder.add(lineData.lines[i], 'width', 0.1, 5).name('width').onChange(function (value) {
@@ -576,6 +546,44 @@ function init() {
     controls.update()
     render();
   })
+}
+
+function init() {
+  textArea = document.getElementById('text-area')
+  textArea.addEventListener('input', handleTextAreaChange)
+  setTextArea(lineData)
+  const domElement = document.getElementById('scene-canvas');
+  renderer = new THREE.WebGLRenderer({ antialias: true, canvas: domElement });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 200);
+  camera.position.set(- 1.5, 2.5, 3.0);
+
+  const light = new THREE.HemisphereLight(0xffffff, 0x080808, 4.5);
+  light.position.set(- 1.25, 1, 1.25);
+  scene.add(light);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.addEventListener('change', render); // use only if there is no animation loop
+  controls.enablePan = true;
+  controls.enableZoom = true;
+
+  // Show a grid
+  const gridHelper = new THREE.GridHelper(10, 10);
+  scene.add(gridHelper);
+
+  // Axes helper
+  const axesHelper = new THREE.AxesHelper(1);
+  scene.add(axesHelper);
+
+  // Have a light grey backgroud
+  scene.background = new THREE.Color(0x22222);
+
+  // Add GUI
+  updateGUI();
 
   drawPolyline()
 
